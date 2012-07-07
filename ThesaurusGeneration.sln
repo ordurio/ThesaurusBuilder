@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WikiCrawler", "WikiCrawler\WikiCrawler.csproj", "{39491CA8-313E-4DC3-A308-4A14AF1B76DD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Thesaurus", "Thesaurus\Thesaurus.csproj", "{71A57984-CCAE-4BE0-82F5-99B7E3D4C29A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{39491CA8-313E-4DC3-A308-4A14AF1B76DD}.Debug|x86.ActiveCfg = Debug|x86
+		{39491CA8-313E-4DC3-A308-4A14AF1B76DD}.Debug|x86.Build.0 = Debug|x86
+		{39491CA8-313E-4DC3-A308-4A14AF1B76DD}.Release|x86.ActiveCfg = Release|x86
+		{39491CA8-313E-4DC3-A308-4A14AF1B76DD}.Release|x86.Build.0 = Release|x86
+		{71A57984-CCAE-4BE0-82F5-99B7E3D4C29A}.Debug|x86.ActiveCfg = Debug|x86
+		{71A57984-CCAE-4BE0-82F5-99B7E3D4C29A}.Debug|x86.Build.0 = Debug|x86
+		{71A57984-CCAE-4BE0-82F5-99B7E3D4C29A}.Release|x86.ActiveCfg = Release|x86
+		{71A57984-CCAE-4BE0-82F5-99B7E3D4C29A}.Release|x86.Build.0 = Release|x86
+	EndGlobalSection
+	GlobalSection(MonoDevelopProperties) = preSolution
+		StartupItem = Thesaurus\Thesaurus.csproj
+	EndGlobalSection
+EndGlobal

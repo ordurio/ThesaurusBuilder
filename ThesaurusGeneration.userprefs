@@ -1,0 +1,23 @@
+﻿<Properties>
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Release|x86" />
+  <MonoDevelop.Ide.Workbench ActiveDocument="Thesaurus/GUI.cs">
+    <Files>
+      <File FileName="Thesaurus/ThesaurusExpander.cs" Line="49" Column="13" />
+      <File FileName="Thesaurus/Program.cs" Line="12" Column="4" />
+      <File FileName="Thesaurus/Utils.cs" Line="18" Column="4" />
+      <File FileName="Thesaurus/GUI.cs" Line="21" Column="25" />
+      <File FileName="Thesaurus/WikiCandidateGenerator.cs" Line="10" Column="6" />
+      <File FileName="WikiCrawler/WikiFetcher.cs" Line="46" Column="7" />
+      <File FileName="WikiCrawler/Main.cs" Line="48" Column="7" />
+    </Files>
+  </MonoDevelop.Ide.Workbench>
+  <MonoDevelop.Ide.DebuggingService.Breakpoints>
+    <BreakpointStore>
+      <Breakpoint file="/home/register/Projects/WikiCrawler/Thesaurus/ThesaurusExpander.cs" line="35" />
+      <Breakpoint file="/home/register/Projects/WikiCrawler/WikiCrawler/WikiFetcher.cs" line="41" />
+      <Breakpoint file="/home/register/Projects/WikiCrawler/Thesaurus/WikiCandidateGenerator.cs" line="17" />
+      <Breakpoint file="/home/register/Projects/WikiCrawler/Thesaurus/Program.cs" line="14" />
+    </BreakpointStore>
+  </MonoDevelop.Ide.DebuggingService.Breakpoints>
+  <MonoDevelop.Ide.DebuggingService.PinnedWatches />
+</Properties>
