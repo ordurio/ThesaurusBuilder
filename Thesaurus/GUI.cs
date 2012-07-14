@@ -8,15 +8,15 @@ namespace Thesaurus
 	{
 		private ThesaurusExpander _thesaurusExpander;
 		private string _thesaurusExpanderPath;
-		private static string NEED_SEED_MESSAGE = "gimme seeds man!";
+		public static string NEED_SEED_MESSAGE = "gimme seeds man!";
 		
 		#region constructor
 		public GUI (string thesaurusExpanderPath)
 		{
 			_thesaurusExpanderPath = thesaurusExpanderPath;
+			_thesaurusExpander = new ThesaurusExpander();
 			// load or create thesaurusExpander
-			if (!ThesaurusExpander.TryLoad(thesaurusExpanderPath, out _thesaurusExpander))
-				_thesaurusExpander = new ThesaurusExpander();
+			ThesaurusExpander.Load(thesaurusExpanderPath, out _thesaurusExpander);
 		}
 		#endregion
 		
@@ -24,10 +24,11 @@ namespace Thesaurus
 		public void Start()
 		{
 			string userResp = "";
-			string message = "";
+			string message = NEED_SEED_MESSAGE;
+	
 			while(userResp != "q")
 			{
-				message = GetNextMessage(userResp, message);
+				GetNextMessage(userResp.Trim(), ref message);
 				Console.WriteLine(message);
 				userResp = Console.ReadLine();
 			}
@@ -42,40 +43,43 @@ namespace Thesaurus
 		/// <param name='userResp'>
 		/// User resp.
 		/// </param>
-		private string GetNextMessage(string userResp, string previousMessage)
+		private void GetNextMessage(string userResp, ref string message)
 		{
+			string newCandidate;
+			double score;
 			switch (userResp)
 			{
 			case "": // confirm candidate
 				TryConfirmCandidate();
-				string newCandidate;
-				double score = ProposeNewCandidate(out newCandidate);
-				return HttpUtility.UrlDecode(newCandidate) + "\t" + score;
+				score = ProposeNewCandidate(out newCandidate);
+				message = HttpUtility.UrlDecode(newCandidate) + "\t" + score;
 				break;
 			case "n": // reject candidate
 				TryRejectCandidate();
 				score = ProposeNewCandidate(out newCandidate);
-				return HttpUtility.UrlDecode(newCandidate) + "\t" + score;
+				message = HttpUtility.UrlDecode(newCandidate) + "\t" + score;
 				break;
 			case "s":
 				_thesaurusExpander.Save(_thesaurusExpanderPath);
-				return previousMessage;
 				break;
 			case "us":
 				_thesaurusExpander.InitScores();
 				_thesaurusExpander.UpdateScores();
-				return previousMessage;
 				break;
 			default: // new seed to add
+				Console.WriteLine("toto");
 				var seeds = userResp.Split(new char[] {' '});
 				foreach(var seed in seeds)
 					_thesaurusExpander.AddSeed(seed);
-				if (previousMessage != NEED_SEED_MESSAGE)
-					return previousMessage;
+				if (message != NEED_SEED_MESSAGE)
+				{
+					Console.WriteLine("tintin");
+				}
 				else
 				{
 					score = ProposeNewCandidate(out newCandidate);
-					return HttpUtility.UrlDecode(newCandidate) + "\t" + score;
+					Console.WriteLine("new candidate: " + newCandidate);
+					message = HttpUtility.UrlDecode(newCandidate) + "\t" + score;
 				}
 				break;
 			}

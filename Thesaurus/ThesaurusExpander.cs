@@ -28,7 +28,7 @@ namespace Thesaurus
 		#region internal useful members
 		private WikiCandidateGenerator _candidateGenerator;
 		private HashSet<string> _alreadySeen;
-		private Dictionary<string, HashSet<string>> _termFriends;
+		public Dictionary<string, HashSet<string>> _termFriends;
 		private Dictionary<string,double> _termScores;
 		#endregion
 		
@@ -53,6 +53,7 @@ namespace Thesaurus
 		private void AddTerm(string term)
 		{
 			AntiTerms.Remove(term);
+			CandidateTerms.Remove(term);
 			Terms.Add(term);
 			_alreadySeen.Add(term);
 		}
@@ -60,6 +61,7 @@ namespace Thesaurus
 		public void AddAntiTerm(string antiTerm)
 		{
 			Terms.Remove(antiTerm);
+			CandidateTerms.Remove(antiTerm);
 			AntiTerms.Add(antiTerm);
 			_alreadySeen.Add(antiTerm);
 			_termScores[antiTerm] = 0.0;
@@ -93,6 +95,8 @@ namespace Thesaurus
 		
 		public void InitScores()
 		{
+			foreach(var t in _termFriends.Keys)
+				_termScores[t] = 0.0;
 			foreach(var t in Terms)
 				_termScores[t] = 1.0;
 			foreach(var at in AntiTerms)
@@ -102,33 +106,37 @@ namespace Thesaurus
 		}
 		
 		
-		public void UpdateScore(string term)
+		public double ComputeScore(string term)
 		{
 			if (!_termScores.ContainsKey(term))
-				_termScores[term] = 0.0;
+				return 0.0;
 
 			if (!_termFriends.ContainsKey(term) || _termFriends[term] == null )
-				return;
+				return 0.0;
 			
+			double score = 0.0;
 			foreach(var f in _termFriends[term])
 			{
 				if (_termScores.ContainsKey(f))
-					_termScores[term] += _termScores[f];
+					score += _termScores[f];
 			}
+			return score;
 		}
 		
 		public void UpdateScores(IEnumerable<string> terms)
 		{
+			Dictionary<string,double> newScores = new Dictionary<string, double>();
 			foreach(var term in terms)
 			{
-				UpdateScore(term);
+				newScores[term] = ComputeScore(term);
 			}
+			foreach(var termScore in newScores)
+				_termScores[termScore.Key] = termScore.Value;
 		}
 		
 		public void UpdateScores()
 		{
-			UpdateScores(Terms);
-			UpdateScores(CandidateTerms);
+			UpdateScores(_termFriends.Keys);
 		}
 		
 		public double GetCandidate(out string candidate)
@@ -154,6 +162,7 @@ namespace Thesaurus
 			if(!string.IsNullOrEmpty(PendingCandidate))
 				AddSeed(PendingCandidate);
 			_termScores[PendingCandidate] = 1.0;
+			CandidateTerms.Remove(PendingCandidate);
 			PendingCandidate = string.Empty;
 		}
 		
@@ -169,23 +178,29 @@ namespace Thesaurus
 		}
 		
 		
-		private HashSet<string> GetFriends(string term)
+		private void GetFriends(string term)
 		{
+			// check in cache
+			term = term.Trim();
 			if (_termFriends.ContainsKey(term))
-				return _termFriends[term];
-			
+				return;
+
+			// otherwise ask _candidate_generator (wiki)
 			HashSet<string> friends;
-			_candidateGenerator.GenerateCandidates(term, out friends);
-			return friends;
+			if (!_candidateGenerator.GenerateCandidates(term, out friends))
+				friends = new HashSet<string>();
+			// register in cache
+			_termFriends[term] = friends;
 		}
 		
 		public bool GenerateCandidates(string seed)
 		{
+			seed = seed.Trim ();
 			if (string.IsNullOrEmpty(seed))
 				return false;
 			bool bOut = false;
-			_termFriends[seed] = GetFriends(seed);
-			if (_termFriends[seed] == null || _termFriends[seed].Count == 0)
+			GetFriends(seed);
+			if (_termFriends[seed].Count == 0)
 				return false;
 			foreach(var nc in _termFriends[seed])
 			{
@@ -196,23 +211,26 @@ namespace Thesaurus
 					bOut = true;
 				}
 				// compute friends of new candidate and store them in _termFriends, in order to score candidate
-				_termFriends[nc] = GetFriends(nc);
+				GetFriends(nc);
 			}
 			return bOut;
 		}
 		#endregion
 		
-		#region thesaurus serialization		
-		public static bool TryLoad(string thesaurusExpanderPath, out ThesaurusExpander thesaurusExpander)
+		#region thesaurus serialization
+		public static void Load(string thesaurusExpanderPath, out ThesaurusExpander thesaurusExpander)
 		{
-			thesaurusExpander = null;
-			// main condition for a load to happen: the availability of seed_terms.csv
-			string seedPath = thesaurusExpanderPath + "/" + SEED_TERMS_FILENAME;
-			if(!File.Exists(seedPath))
-				return false;
+			// whatever, always try to load cache wikipedia content
 			thesaurusExpander = new ThesaurusExpander();
-			foreach(string term in Utils.ReadTerms(seedPath))
-				thesaurusExpander.SeedTerms.Enqueue(term);
+			string termFriendsPath = thesaurusExpanderPath + "/" + TERM_FRIENDS_FILENAME;
+			if(File.Exists(termFriendsPath))
+				thesaurusExpander._termFriends = new Dictionary<string, HashSet<string>>( ReadFriends(termFriendsPath));
+			
+			// load seeds
+			string seedPath = thesaurusExpanderPath + "/" + SEED_TERMS_FILENAME;
+			if(File.Exists(seedPath))
+				foreach(string term in Utils.ReadTerms(seedPath))
+					thesaurusExpander.SeedTerms.Enqueue(term);
 			
 			// fill other components if available
 			string antiPath = thesaurusExpanderPath + "/" + ANTI_TERMS_FILENAME;
@@ -230,12 +248,6 @@ namespace Thesaurus
 			string scoresPath = thesaurusExpanderPath + "/" + TERM_SCORES_FILENAME;
 			if(File.Exists(scoresPath))
 				thesaurusExpander._termScores = ReadScores(scoresPath);
-
-			string termFriendsPath = thesaurusExpanderPath + "/" + TERM_FRIENDS_FILENAME;
-			if(File.Exists(termFriendsPath))
-				thesaurusExpander._termFriends = ReadFriends(termFriendsPath);
-
-			return true;
 		}
 		
 		public void Save(string path)
@@ -262,9 +274,10 @@ namespace Thesaurus
 			StreamWriter sw = new StreamWriter(path);
 			foreach(var tf in _termFriends)
 			{
-				if (tf.Key == null || tf.Value == null)
+				if (tf.Key == null)
 					continue;
 				sw.Write(tf.Key);
+				if (tf.Value != null)
 				foreach(var f in tf.Value)
 					sw.Write("\t" + f.Trim());
 				sw.WriteLine();
@@ -291,7 +304,7 @@ namespace Thesaurus
 			foreach(string line in File.ReadAllLines(path, Encoding.UTF8))
 			{
 				var termFriends = line.Split('\t');
-				if (termFriends.Length < 2)
+				if (termFriends.Length < 1)
 					continue;
 				var term = termFriends[0].Trim();
 				output[term] = new HashSet<string>();
