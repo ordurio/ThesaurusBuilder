@@ -48,22 +48,35 @@ namespace Thesaurus
 			{
 			case "": // confirm candidate
 				TryConfirmCandidate();
-				return HttpUtility.UrlDecode(ProposeNewCandidate());
+				string newCandidate;
+				double score = ProposeNewCandidate(out newCandidate);
+				return HttpUtility.UrlDecode(newCandidate) + "\t" + score;
 				break;
 			case "n": // reject candidate
 				TryRejectCandidate();
-				return HttpUtility.UrlDecode(ProposeNewCandidate());
+				score = ProposeNewCandidate(out newCandidate);
+				return HttpUtility.UrlDecode(newCandidate) + "\t" + score;
 				break;
 			case "s":
 				_thesaurusExpander.Save(_thesaurusExpanderPath);
 				return previousMessage;
 				break;
+			case "us":
+				_thesaurusExpander.InitScores();
+				_thesaurusExpander.UpdateScores();
+				return previousMessage;
+				break;
 			default: // new seed to add
-				_thesaurusExpander.AddSeed(userResp);
+				var seeds = userResp.Split(new char[] {' '});
+				foreach(var seed in seeds)
+					_thesaurusExpander.AddSeed(seed);
 				if (previousMessage != NEED_SEED_MESSAGE)
 					return previousMessage;
 				else
-					return HttpUtility.UrlDecode(ProposeNewCandidate());
+				{
+					score = ProposeNewCandidate(out newCandidate);
+					return HttpUtility.UrlDecode(newCandidate) + "\t" + score;
+				}
 				break;
 			}
 		}
@@ -71,7 +84,7 @@ namespace Thesaurus
 		private void TryConfirmCandidate()
 		{
 			// confirm candidate if there was a pending candidate
-			if (_thesaurusExpander.PendingCandidate != "")
+			if (!string.IsNullOrEmpty(_thesaurusExpander.PendingCandidate))
 			{
 				_thesaurusExpander.ConfirmCandidate();
 			}
@@ -86,17 +99,15 @@ namespace Thesaurus
 			}
 		}
 
-		private string ProposeNewCandidate()
+		private double ProposeNewCandidate(out string newCandidate)
 		{
-			string newCandidate = _thesaurusExpander.GetCandidate();
+			var score = _thesaurusExpander.GetCandidate(out newCandidate);
 			if (newCandidate != "")
-				return newCandidate;
+				 return score;
 			else //if no more candidate can be generated, only new seeds given by the user could do
 			{
-				if(_thesaurusExpander.GenerateCandidates())
-					return _thesaurusExpander.GetCandidate();
-				else
-					return NEED_SEED_MESSAGE;
+				newCandidate = NEED_SEED_MESSAGE;
+				return -1.0;
 			}
 		}
 		#endregion
