@@ -67,20 +67,11 @@ namespace Thesaurus
 				_thesaurusExpander.UpdateScores();
 				break;
 			default: // new seed to add
-				Console.WriteLine("toto");
 				var seeds = userResp.Split(new char[] {' '});
 				foreach(var seed in seeds)
-					_thesaurusExpander.AddSeed(seed);
-				if (message != NEED_SEED_MESSAGE)
-				{
-					Console.WriteLine("tintin");
-				}
-				else
-				{
-					score = ProposeNewCandidate(out newCandidate);
-					Console.WriteLine("new candidate: " + newCandidate);
-					message = HttpUtility.UrlDecode(newCandidate) + "\t" + score;
-				}
+					_thesaurusExpander.AddSeed(seed.Trim());
+				score = ProposeNewCandidate(out newCandidate);
+				message = HttpUtility.UrlDecode(newCandidate) + "\t" + score;
 				break;
 			}
 		}

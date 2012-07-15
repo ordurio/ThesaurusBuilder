@@ -15,6 +15,7 @@ namespace Thesaurus
 		static string ANTI_TERMS_FILENAME = "anti_terms.txt";
 		static string TERM_FRIENDS_FILENAME = "term_friends.txt";
 		static string TERM_SCORES_FILENAME = "term_scores.txt";
+		static string ALREADY_SEEN_FILENAME = "already_seen.txt";
 		#endregion
 		
 		#region main thesaurus components
@@ -64,12 +65,12 @@ namespace Thesaurus
 			CandidateTerms.Remove(antiTerm);
 			AntiTerms.Add(antiTerm);
 			_alreadySeen.Add(antiTerm);
-			_termScores[antiTerm] = 0.0;
+			_termScores[antiTerm.ToLower()] = 0.0;
 		}
 		
 		public void AddSeed(string seed)
 		{
-			_termScores[seed] = 1.0;
+			_termScores[seed.ToLower()] = 1.0;
 			AddTerm(seed);
 			SeedTerms.Enqueue(seed);
 			GenerateCandidates(SeedTerms.Dequeue());
@@ -84,41 +85,44 @@ namespace Thesaurus
 			double bestScore = -1.0;
 			foreach(var c in CandidateTerms)
 			{
-				if (_termScores.ContainsKey(c) && _termScores[c] > bestScore)
+				if (_termScores.ContainsKey(c.ToLower()) && _termScores[c.ToLower()] > bestScore)
 				{
-					bestScore = _termScores[c];
+					bestScore = _termScores[c.ToLower()];
 					bestCandidate = c;
 				}
 			}
 			return bestCandidate;
 		}
 		
+		
+		/// <summary>
+		/// About term scoring: init puts all seeds to 1 and everyone else to 0.
+		/// Then, each subsequent call to UpdateScores() will diffuse seed scores to candidates.
+		/// if more than one call to UpdateScores is made, then candidate terms will in turn transmit their respective scores.
+		/// </summary>
 		public void InitScores()
 		{
-			foreach(var t in _termFriends.Keys)
-				_termScores[t] = 0.0;
 			foreach(var t in Terms)
-				_termScores[t] = 1.0;
+			{
+				_termScores[t.ToLower()] = 1.0;
+			}
 			foreach(var at in AntiTerms)
-				_termScores[at] = 0.0;
+				_termScores[at.ToLower()] = 0.0;
 			foreach(var ct in CandidateTerms)
-				_termScores[ct] = 0.0;
+				_termScores[ct.ToLower()] = 0.0;
 		}
 		
 		
 		public double ComputeScore(string term)
 		{
-			if (!_termScores.ContainsKey(term))
-				return 0.0;
-
 			if (!_termFriends.ContainsKey(term) || _termFriends[term] == null )
 				return 0.0;
-			
 			double score = 0.0;
 			foreach(var f in _termFriends[term])
 			{
-				if (_termScores.ContainsKey(f))
-					score += _termScores[f];
+				if (!Terms.Contains(f.ToLower()) && !Terms.Contains(f) && !CandidateTerms.Contains(f))
+					continue;
+				score += _termScores[f.ToLower()];
 			}
 			return score;
 		}
@@ -131,12 +135,13 @@ namespace Thesaurus
 				newScores[term] = ComputeScore(term);
 			}
 			foreach(var termScore in newScores)
-				_termScores[termScore.Key] = termScore.Value;
+				_termScores[termScore.Key.ToLower()] += termScore.Value;
 		}
 		
 		public void UpdateScores()
 		{
-			UpdateScores(_termFriends.Keys);
+			UpdateScores(Terms);
+			UpdateScores(CandidateTerms);
 		}
 		
 		public double GetCandidate(out string candidate)
@@ -154,14 +159,14 @@ namespace Thesaurus
 			}
 			CandidateTerms.Remove(PendingCandidate);
 			candidate = PendingCandidate;
-			return _termScores.ContainsKey(candidate) ? _termScores[candidate] : 0.0;
+			return _termScores.ContainsKey(candidate.ToLower()) ? _termScores[candidate.ToLower()] : 0.0;
 		}
 		
 		public void ConfirmCandidate()
 		{
 			if(!string.IsNullOrEmpty(PendingCandidate))
 				AddSeed(PendingCandidate);
-			_termScores[PendingCandidate] = 1.0;
+			_termScores[PendingCandidate.ToLower()] = 1.0;
 			CandidateTerms.Remove(PendingCandidate);
 			PendingCandidate = string.Empty;
 		}
@@ -172,7 +177,7 @@ namespace Thesaurus
 			{
 				AntiTerms.Add(PendingCandidate);
 				Terms.Remove(PendingCandidate);
-				_termScores[PendingCandidate] = 0.0;
+				_termScores[PendingCandidate.ToLower()] = 0.0;
 			}
 			PendingCandidate = string.Empty;
 		}
@@ -222,7 +227,7 @@ namespace Thesaurus
 		{
 			// whatever, always try to load cache wikipedia content
 			thesaurusExpander = new ThesaurusExpander();
-			string termFriendsPath = thesaurusExpanderPath + "/" + TERM_FRIENDS_FILENAME;
+			string termFriendsPath = TERM_FRIENDS_FILENAME;
 			if(File.Exists(termFriendsPath))
 				thesaurusExpander._termFriends = new Dictionary<string, HashSet<string>>( ReadFriends(termFriendsPath));
 			
@@ -248,6 +253,10 @@ namespace Thesaurus
 			string scoresPath = thesaurusExpanderPath + "/" + TERM_SCORES_FILENAME;
 			if(File.Exists(scoresPath))
 				thesaurusExpander._termScores = ReadScores(scoresPath);
+
+			string alreadySeenPath = thesaurusExpanderPath + "/" + ALREADY_SEEN_FILENAME;
+			if(File.Exists(alreadySeenPath))
+				thesaurusExpander._alreadySeen = Utils.ReadTerms(alreadySeenPath);
 		}
 		
 		public void Save(string path)
@@ -255,10 +264,13 @@ namespace Thesaurus
 			Directory.CreateDirectory(path);
 			Utils.SaveTerms(SeedTerms, path +"/" + SEED_TERMS_FILENAME);
 			Utils.SaveTerms(AntiTerms, path +"/" + ANTI_TERMS_FILENAME);
+			if (!string.IsNullOrEmpty(PendingCandidate))
+				CandidateTerms.Add(PendingCandidate);
 			Utils.SaveTerms(CandidateTerms, path +"/" + CANDIDATE_TERMS_FILENAME);
 			Utils.SaveTerms(Terms, path +"/" + TERMS_FILENAME);
 			SaveScores(path + "/" + TERM_SCORES_FILENAME);
-			SaveTermFriends(path + "/" + TERM_FRIENDS_FILENAME);
+			SaveTermFriends(TERM_FRIENDS_FILENAME);
+			Utils.SaveTerms(_alreadySeen, path + "/" + ALREADY_SEEN_FILENAME);
 		}
 		
 		private void SaveScores(string path)
@@ -293,7 +305,7 @@ namespace Thesaurus
 				var termScore = line.Split('\t');
 				if (termScore.Length < 2)
 					continue;
-				output[termScore[0].Trim()] = Convert.ToDouble(termScore[1]);
+				output[termScore[0].Trim().ToLower()] = Convert.ToDouble(termScore[1]);
 			}
 			return output;
 		}
